@@ -67,6 +67,7 @@ limitations under the License.
 #include "xla/hlo/ir/hlo_opcode.h"
 #include "xla/hlo/ir/hlo_schedule.h"
 #include "xla/hlo/ir/hlo_sharding.h"
+#include "xla/hlo/transforms/hlo_constant_splitter.h"
 #include "xla/hlo/utils/hlo_live_range.h"
 #include "xla/hlo/utils/hlo_sharding_util.h"
 #include "xla/service/buffer_value.h"
@@ -76,6 +77,7 @@ limitations under the License.
 #include "xla/service/hlo_alias_analysis.h"
 #include "xla/service/hlo_buffer.h"
 #include "xla/service/hlo_cost_analysis.h"
+#include "xla/service/hlo_dce.h"
 #include "xla/service/hlo_memory_scheduler.h"
 #include "xla/service/hlo_value.h"
 #include "xla/service/optimize_input_output_buffer_alias.h"
@@ -4327,6 +4329,47 @@ std::unique_ptr<HloModule> CloneModule(const HloModule* module) {
   return module_clone;
 }
 
+bool OpEncountersShardToFull(const HloInstruction* op) {
+  std::queue<const HloInstruction*> queue;
+  queue.push(op);
+
+  absl::flat_hash_set<const HloInstruction*> visited;
+  while (!queue.empty()) {
+    const HloInstruction* instruction = queue.front();
+    queue.pop();
+    if (visited.contains(instruction)) {
+      continue;
+    }
+    visited.insert(instruction);
+
+    for (const HloComputation* computation :
+         instruction->called_computations()) {
+      for (const HloInstruction* parameter :
+           computation->parameter_instructions()) {
+        if (spmd::IsSPMDShardToFullShapeCustomCall(parameter)) {
+          return true;
+        } else if (spmd::IsSPMDFullToShardShapeCustomCall(parameter) ||
+                   parameter == instruction || visited.contains(parameter)) {
+          continue;
+        }
+        queue.push(parameter);
+      }
+    }
+
+    for (const HloInstruction* user : instruction->users()) {
+      if (spmd::IsSPMDShardToFullShapeCustomCall(user)) {
+        return true;
+      } else if (spmd::IsSPMDFullToShardShapeCustomCall(user) ||
+                 visited.contains(user)) {
+        continue;
+      }
+      queue.push(user);
+    }
+  }
+
+  return false;
+}
+
 AutoSharding::AutoSharding(const AutoShardingOption& option)
     : option_(option) {}
 
@@ -4388,6 +4431,37 @@ absl::StatusOr<bool> AutoSharding::Run(
   }
 
   bool module_is_manually_partitioned = ModuleIsManuallyPartitioned(module);
+  if (module_is_manually_partitioned) {
+    // Run HloConstantSplitter for modules with manually partitioned
+    // sub-graphs. This is done to avoid having constant ops that are used as
+    // part of such manually partitioned sub-graphs, as well as outside those,
+    // leading to conflicts during sharding. I have however, anecdotally
+    // observed constant splitting to cause increased auto-sharding times, and
+    // hence we enable this only when needed.
+    bool has_manually_partitioned_subgraphs = false;
+    for (const HloComputation* computation : module->computations()) {
+      for (const HloInstruction* instruction : computation->instructions()) {
+        if (spmd::IsSPMDFullToShardShapeCustomCall(instruction) ||
+            spmd::IsSPMDShardToFullShapeCustomCall(instruction)) {
+          has_manually_partitioned_subgraphs = true;
+          break;
+        }
+      }
+      if (has_manually_partitioned_subgraphs) {
+        break;
+      }
+    }
+    if (has_manually_partitioned_subgraphs) {
+      HloConstantSplitter constant_splitter(
+          /*split_expressions=*/option_.enable_expression_constant_splitter,
+          [&](const HloInstruction* instruction) {
+            return OpEncountersShardToFull(instruction);
+          });
+      CHECK_OK(constant_splitter.Run(module, execution_threads));
+      CHECK_OK(HloDCE().Run(module, execution_threads));
+    }
+  }
+
   std::vector<std::vector<int64_t>> mesh_shapes;
   if (option_.try_multiple_mesh_shapes || module_is_manually_partitioned) {
     bool asymmetrical_mesh_dims = false;
