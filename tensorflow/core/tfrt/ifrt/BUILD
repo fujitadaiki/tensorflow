@@ -30,7 +30,9 @@ cc_library(
     srcs = ["ifrt_serving_core_selector.cc"],
     hdrs = ["ifrt_serving_core_selector.h"],
     deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
         "@local_tsl//tsl/framework:serving_device_selector",
     ],
 )

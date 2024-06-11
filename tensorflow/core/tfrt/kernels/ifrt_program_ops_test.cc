@@ -111,7 +111,10 @@ TEST_F(IfrtCallOpTest, Basic) {
 
   AddInputFromArray<int32_t>(TensorShape({1, 3}), {1, 2, 3});
   AddInputFromArray<int32_t>(TensorShape({3, 1}), {1, 2, 3});
-  TF_ASSERT_OK(RunOpKernel());
+  // Run warmup execution plus one for core selection.
+  for (int i = 0; i < xla::ifrt::test_util::kDefaultCpuCoreCount + 1; ++i) {
+    TF_ASSERT_OK(RunOpKernel());
+  }
   Tensor expected_out = AsTensor<int32_t>({14}, TensorShape({1, 1}));
   EXPECT_THAT(*GetOutput(0), TensorEq(expected_out));
 }
