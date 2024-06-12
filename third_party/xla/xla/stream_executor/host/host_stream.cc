@@ -29,6 +29,7 @@ limitations under the License.
 #include "absl/synchronization/notification.h"
 #include "xla/stream_executor/event.h"
 #include "xla/stream_executor/host/host_event.h"
+#include "xla/stream_executor/stream.h"
 #include "xla/stream_executor/stream_common.h"
 #include "tsl/platform/denormal.h"
 #include "tsl/platform/env.h"
@@ -52,6 +53,13 @@ HostStream::~HostStream() {
   parent()->DeallocateStream(this);
 }
 
+absl::Status HostStream::WaitFor(Stream* other) {
+  auto event = std::make_shared<absl::Notification>();
+  static_cast<HostStream*>(other)->EnqueueTask([event]() { event->Notify(); });
+  EnqueueTask([event]() { event->WaitForNotification(); });
+  return absl::OkStatus();
+}
+
 absl::Status HostStream::WaitFor(Event* event) {
   std::shared_ptr<absl::Notification> notification =
       static_cast<HostEvent*>(event)->notification();
@@ -64,6 +72,16 @@ bool HostStream::EnqueueTask(absl::AnyInvocable<void() &&> task) {
     std::move(task)();
     return absl::OkStatus();
   });
+}
+
+absl::Status HostStream::RecordEvent(Event* event) {
+  std::shared_ptr<absl::Notification> notification =
+      static_cast<HostEvent*>(event)->notification();
+  EnqueueTask([notification]() {
+    CHECK(!notification->HasBeenNotified());
+    notification->Notify();
+  });
+  return absl::OkStatus();
 }
 
 bool HostStream::EnqueueTaskWithStatus(

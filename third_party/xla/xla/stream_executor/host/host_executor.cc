@@ -230,14 +230,6 @@ bool HostExecutor::HostCallback(
 
 void HostExecutor::DeallocateStream(Stream* stream) {}
 
-bool HostExecutor::CreateStreamDependency(Stream* dependent, Stream* other) {
-  auto event = std::make_shared<absl::Notification>();
-  AsHostStream(other)->EnqueueTask([event]() { event->Notify(); });
-  AsHostStream(dependent)->EnqueueTask(
-      [event]() { event->WaitForNotification(); });
-  return true;
-}
-
 absl::StatusOr<std::unique_ptr<Event>> HostExecutor::CreateEvent() {
   return std::make_unique<HostEvent>();
 }
@@ -245,16 +237,6 @@ absl::StatusOr<std::unique_ptr<Event>> HostExecutor::CreateEvent() {
 static HostEvent* AsHostEvent(Event* event) {
   DCHECK(event != nullptr);
   return static_cast<HostEvent*>(event);
-}
-
-absl::Status HostExecutor::RecordEvent(Stream* stream, Event* event) {
-  std::shared_ptr<absl::Notification> notification =
-      AsHostEvent(event)->notification();
-  AsHostStream(stream)->EnqueueTask([notification]() {
-    CHECK(!notification->HasBeenNotified());
-    notification->Notify();
-  });
-  return absl::OkStatus();
 }
 
 absl::Status HostExecutor::BlockHostUntilDone(Stream* stream) {

@@ -25,6 +25,7 @@ limitations under the License.
 #include "xla/stream_executor/gpu/gpu_executor.h"
 #include "xla/stream_executor/gpu/gpu_types.h"
 #include "xla/stream_executor/platform.h"
+#include "xla/stream_executor/stream.h"
 #include "xla/stream_executor/stream_common.h"
 
 namespace stream_executor {
@@ -93,10 +94,9 @@ class GpuStream : public StreamCommon {
   GpuStreamHandle cuda_stream() const { return gpu_stream(); }
 
   GpuExecutor* parent() const { return parent_; }
-  absl::Status WaitFor(Stream* stream) override {
-    return StreamCommon::WaitFor(stream);
-  }
+  absl::Status WaitFor(Stream* other) override;
   absl::Status WaitFor(Event* event) override;
+  absl::Status RecordEvent(Event* event) override;
 
  private:
   GpuExecutor* parent_;         // Executor that spawned this stream.

@@ -268,15 +268,8 @@ class StreamExecutor {
   virtual bool HostCallback(Stream* stream,
                             absl::AnyInvocable<absl::Status() &&> callback) = 0;
 
-  // Inserts the specified event at the end of the specified stream.
-  virtual absl::Status RecordEvent(Stream* stream, Event* event) = 0;
-
   // Deallocates stream resources on the underlying platform.
   virtual void DeallocateStream(Stream* stream) = 0;
-
-  // Causes dependent to not begin execution until other has finished its
-  // last-enqueued work.
-  virtual bool CreateStreamDependency(Stream* dependent, Stream* other) = 0;
 
   // Causes the host code to synchronously wait for operations enqueued
   // onto stream to complete. Effectively a join on the asynchronous device

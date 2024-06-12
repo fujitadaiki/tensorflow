@@ -76,20 +76,6 @@ void TpuExecutor::DeallocateStream(Stream* stream) {
   tpu_platform().mutex().Unlock();
 }
 
-bool TpuExecutor::CreateStreamDependency(Stream* dependent, Stream* other) {
-  return ExecutorApiFn()->TpuExecutor_CreateStreamDependencyFn(
-      executor_, get_stream(dependent), get_stream(other));
-}
-
-absl::Status TpuExecutor::RecordEvent(Stream* stream,
-                                      ::stream_executor::Event* event) {
-  StatusHelper status;
-  auto se_event = tpu_platform().LookupEvent(event);
-  ExecutorApiFn()->TpuExecutor_RecordEventFn(executor_, get_stream(stream),
-                                             se_event, status.c_status);
-  return status.status();
-}
-
 absl::StatusOr<std::unique_ptr<Stream>> TpuExecutor::CreateStream(
     std::optional<std::variant<StreamPriority, int>> priority) {
   SE_Stream* tpu_stream = ExecutorApiFn()->TpuStream_NewFn(executor_);

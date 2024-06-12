@@ -230,10 +230,6 @@ class GpuExecutor : public StreamExecutorCommon {
 
   void DeallocateStream(Stream* stream) override;
 
-  bool CreateStreamDependency(Stream* dependent, Stream* other) override;
-
-  absl::Status RecordEvent(Stream* stream, Event* event) override;
-
   absl::Status BlockHostUntilDone(Stream* stream) override;
 
   absl::Status EnablePeerAccessTo(StreamExecutor* other) override;

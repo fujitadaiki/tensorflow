@@ -91,7 +91,12 @@ class TpuStream : public tensorflow::tpu::TpuStreamInterface {
   }
 
   absl::Status WaitFor(stream_executor::Stream* stream) override {
-    return TpuStreamInterface::WaitFor(stream);
+    if (stream_executor::tpu::ExecutorApiFn()
+            ->TpuExecutor_CreateStreamDependencyFn(
+                se_executor_, stream_, tpu_platform_->LookupStream(stream))) {
+      return absl::OkStatus();
+    }
+    return absl::InternalError("Failed to create stream dependency");
   }
 
   absl::Status WaitFor(stream_executor::Event* event) override {
@@ -107,6 +112,14 @@ class TpuStream : public tensorflow::tpu::TpuStreamInterface {
     stream_executor::tpu::ExecutorApiFn()->TpuExecutor_GetStatusFn(
         se_executor_, stream_, status.c_status);
     CheckStatus(status.status());
+    return status.status();
+  }
+
+  absl::Status RecordEvent(stream_executor::Event* event) override {
+    StatusHelper status;
+    auto se_event = tpu_platform_->LookupEvent(event);
+    stream_executor::tpu::ExecutorApiFn()->TpuExecutor_RecordEventFn(
+        se_executor_, stream_, se_event, status.c_status);
     return status.status();
   }
 

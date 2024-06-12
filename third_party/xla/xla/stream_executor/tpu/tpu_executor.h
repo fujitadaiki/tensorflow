@@ -69,8 +69,6 @@ class TpuExecutor : public tensorflow::tpu::TpuExecutorInterface {
   absl::StatusOr<std::unique_ptr<DeviceDescription>> CreateDeviceDescription()
       const override;
 
-  bool CreateStreamDependency(Stream* dependent, Stream* other) override;
-
   void DeallocateStream(Stream* stream) override;
 
   void Deallocate(const DeviceMemoryBase& memory);
@@ -117,8 +115,6 @@ class TpuExecutor : public tensorflow::tpu::TpuExecutorInterface {
   absl::Status SynchronousMemcpy(void* host_dst,
                                  const DeviceMemoryBase& device_src,
                                  uint64_t size) override;
-
-  absl::Status RecordEvent(Stream* stream, Event* event) override;
 
   absl::Status UnloadAllPrograms() override;
 

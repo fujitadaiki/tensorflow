@@ -660,10 +660,6 @@ bool GpuExecutor::HostCallback(Stream* stream,
   delete callback;
 }
 
-absl::Status GpuExecutor::RecordEvent(Stream* stream, Event* event) {
-  return AsGpuEvent(event)->Record(AsGpuStream(stream));
-}
-
 void GpuExecutor::DeallocateStream(Stream* stream) {
   {
     absl::MutexLock lock(&mu_);
@@ -678,21 +674,6 @@ void GpuExecutor::DeallocateStream(Stream* stream) {
     LOG(ERROR) << "Deallocating stream with pending work";
   }
   rocm_stream->Destroy();
-}
-
-bool GpuExecutor::CreateStreamDependency(Stream* dependent, Stream* other) {
-  GpuEventHandle other_completed_event = *AsGpuStream(other)->completed_event();
-  bool ok = GpuDriver::RecordEvent(context_, other_completed_event,
-                                   AsGpuStreamValue(other))
-                .ok();
-  if (!ok) {
-    LOG(ERROR) << "failed to record completion event; "
-                  "therefore, failed to create inter-stream dependency";
-    return false;
-  }
-
-  return GpuDriver::WaitStreamOnEvent(context_, AsGpuStreamValue(dependent),
-                                      other_completed_event);
 }
 
 absl::Status GpuExecutor::BlockHostUntilDone(Stream* stream) {

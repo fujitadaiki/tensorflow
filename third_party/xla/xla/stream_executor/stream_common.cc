@@ -61,10 +61,6 @@ StreamCommon::PlatformSpecificHandle StreamCommon::platform_specific_handle()
   return handle;
 }
 
-absl::Status StreamCommon::RecordEvent(Event *event) {
-  return parent_->RecordEvent(this, event);
-}
-
 absl::StatusOr<Stream *> StreamCommon::GetOrCreateSubStream() {
   // Do not destroy bad streams when holding mu_ because ~Stream() may
   // BlockHostUntilDone and it's host callbacks might attempt to acquire mu_.
@@ -145,16 +141,6 @@ void StreamCommon::ReturnSubStream(Stream *sub_stream) {
 
   LOG(FATAL) << "stream=" << this << " did not create the returned sub-stream "
              << sub_stream;
-}
-
-absl::Status StreamCommon::WaitFor(Stream *other) {
-  if (this == other) {
-    return absl::InternalError("stream cannot wait for itself");
-  }
-  if (parent_->CreateStreamDependency(this, other)) {
-    return absl::OkStatus();
-  }
-  return absl::InternalError("stream cannot wait for other");
 }
 
 absl::Status StreamCommon::Memcpy(void *host_dst,

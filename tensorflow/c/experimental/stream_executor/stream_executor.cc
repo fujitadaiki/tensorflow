@@ -387,24 +387,8 @@ class CStreamExecutor : public StreamExecutorCommon {
     return stream_executor_->host_callback(&device_, stream_handle,
                                            &HostCallbackTrampoline, ctx);
   }
-  absl::Status RecordEvent(Stream* stream, Event* event) override {
-    SP_Stream stream_handle = static_cast<CStream*>(stream)->Handle();
-    return static_cast<CEvent*>(event)->Record(stream_handle);
-  }
   void DeallocateStream(Stream* stream) override {
     static_cast<CStream*>(stream)->Destroy();
-  }
-  bool CreateStreamDependency(Stream* dependent, Stream* other) override {
-    OwnedTFStatus c_status(TF_NewStatus());
-    SP_Stream dependent_handle = static_cast<CStream*>(dependent)->Handle();
-    SP_Stream other_handle = static_cast<CStream*>(other)->Handle();
-    stream_executor_->create_stream_dependency(&device_, dependent_handle,
-                                               other_handle, c_status.get());
-    if (TF_GetCode(c_status.get()) != TF_OK) {
-      LOG(ERROR) << TF_Message(c_status.get());
-      return false;
-    }
-    return true;
   }
   absl::Status BlockHostForEvent(Stream* stream, Event* event) {
     OwnedTFStatus c_status(TF_NewStatus());
