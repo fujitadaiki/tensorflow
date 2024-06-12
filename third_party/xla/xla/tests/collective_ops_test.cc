@@ -151,6 +151,25 @@ class CollectiveOpsTest : public HloTestBase {
         "minimum",
         /*input_value=*/input_value.Clone(),
         /*expected_value=*/to_literal({cast(1), cast(2), cast(3)}));
+    if constexpr (std::numeric_limits<LiteralType>::is_signed) {
+      input_value = to_literal({cast(-1), cast(-2), cast(-3)});
+      TestTwoReplicasOneOperand<LiteralType>(
+          "add",
+          /*input_value=*/input_value.Clone(),
+          /*expected_value=*/to_literal({cast(-2), cast(-4), cast(-6)}));
+      TestTwoReplicasOneOperand<LiteralType>(
+          "multiply",
+          /*input_value=*/input_value.Clone(),
+          /*expected_value=*/to_literal({cast(1), cast(4), cast(9)}));
+      TestTwoReplicasOneOperand<LiteralType>(
+          "maximum",
+          /*input_value=*/input_value.Clone(),
+          /*expected_value=*/to_literal({cast(-1), cast(-2), cast(-3)}));
+      TestTwoReplicasOneOperand<LiteralType>(
+          "minimum",
+          /*input_value=*/input_value.Clone(),
+          /*expected_value=*/to_literal({cast(-1), cast(-2), cast(-3)}));
+    }
   }
 
  protected:
