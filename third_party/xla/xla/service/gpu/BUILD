@@ -4273,6 +4273,7 @@ cc_library(
     deps = [
         ":backend_configs_cc",
         ":cublas_cudnn",
+        ":gpu_latency_hiding_scheduler",
         ":gpu_schedule_postprocessing",
         "//xla:shape_util",
         "//xla:statusor",
@@ -4302,6 +4303,7 @@ cc_library(
         "@local_tsl//tsl/platform:path",
         "@local_tsl//tsl/platform:protobuf",
         "@local_tsl//tsl/platform:statusor",
+        "@local_tsl//tsl/profiler/protobuf:profiled_instructions_proto_cc",
     ],
 )
 
@@ -4313,6 +4315,7 @@ xla_test(
     backends = ["gpu"],
     deps = [
         ":gpu_hlo_schedule",
+        "//third_party/protobuf",
         "//xla:shape_util",
         "//xla/hlo/ir:hlo",
         "//xla/hlo/utils:hlo_query",
@@ -4326,10 +4329,11 @@ xla_test(
         "//xla/tests:xla_internal_test_main",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:string_view",
         "@com_google_googletest//:gtest",
-        "@local_tsl//tsl/platform:env",
         "@local_tsl//tsl/platform:status",
+        "@local_tsl//tsl/platform:status_matchers",
         "@local_tsl//tsl/platform:statusor",
         "@local_tsl//tsl/profiler/protobuf:profiled_instructions_proto_cc",
     ],
@@ -6263,4 +6267,26 @@ xla_cc_test(
         "@local_tsl//tsl/platform:status_matchers",
         "@local_tsl//tsl/platform:statusor",
     ],
+)
+
+cc_library(
+    name = "gpu_latency_hiding_scheduler",
+    srcs = ["gpu_latency_hiding_scheduler.cc"],
+    hdrs = ["gpu_latency_hiding_scheduler.h"],
+    deps = [
+        ":backend_configs_cc",
+        "//xla/hlo/ir:hlo",
+        "//xla/hlo/utils:hlo_query",
+        "//xla/service:collective_ops_utils",
+        "//xla/service:latency_hiding_scheduler",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "gpu_latency_hiding_scheduler_test",
+    srcs = ["gpu_latency_hiding_scheduler_test.cc"],
+    deps = ["@com_google_googletest//:gtest_main"],
 )
